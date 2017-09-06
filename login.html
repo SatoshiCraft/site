@@ -1,0 +1,213 @@
+<script async src='https://www.google.com/recaptcha/api.js'></script>
+<div class="box-login-content">
+	<div id="box-login">
+		<p>Qual o seu Nick?</p>
+		<span>
+		<i class="fa fa-user"></i><input id="usrname" type="text" name="" oninput="this.value=removeSpaces(this.value);" autofocus>
+		</span>
+
+		<p>E sua Senha?</p>
+		<span>
+		<i class="fa fa-unlock-alt pw1c"></i><input id="pw1" type="password" name="" oninput="passwordVerification1(this.value);">
+		</span>
+
+		<p class="register registerdo">Pode repetir?</p>
+		<span class="register registerdo">
+		<i class="fa fa-unlock-alt pw2c"></i><input id="pw2" type="password" name="" oninput="passwordVerification2(this.value);">
+		</span>
+		
+		<p class="registerm registerdom">Qual o seu email?</p>
+		<span class="registerm registerdom">
+		<i class="fa fa-envelope"></i><input id="email" type="email" name="" oninput="mailVerification(this.value);">
+		</span>
+		<button id="buttonlogin">Entrar</button>
+		<div class="g-recaptcha"
+			data-sitekey="6LfgrhwUAAAAAFUb12g7V6NMBdhXPGzWNYN3eaML"
+			data-callback="onSubmit"
+			data-size="invisible">
+		</div>
+	</div>
+</div>
+<script>
+function removeSpaces(string) {
+ if ($("#usrname").val().length < 17 && $("#usrname").val().length > 2) {
+    $("#usrname").addClass('box-login-green');
+	$("#usrname").removeClass('box-login-red');
+} else {
+    $("#usrname").addClass('box-login-red');
+	$("#usrname").removeClass('box-login-green');
+}
+return string.split(' ').join('');
+}
+var reglogin;
+$( "#usrname" ).blur(function() {
+$.post( "backend/checkUser.php", { username: $("#usrname").val()})
+  .done(function( data ) {
+    console.log(data);
+    if (data == "false") {
+		if (isUsernameValid()) {
+			if($("#buttonlogin").text() != "Cadastrar") {
+				$("#buttonlogin").text( "Cadastrar" );
+				$(".register").removeClass('registerdo');
+				reglogin = false;
+			}
+		}
+    }
+    if (data == "true") {
+	$("#buttonlogin").text( "Entrar" );
+	$(".register").addClass('registerdo');
+	$(".registerm").addClass('registerdom');
+	reglogin = true;
+    }
+  });
+});
+
+function passwordVerification1(string) {
+  if (isPasswordValid()) {
+	$("#pw1").addClass('box-login-green');
+	$(".pw1c").removeClass('fa-unlock-alt');
+	$(".pw1c").addClass('fa-lock');
+  } else {
+    $("#pw1").removeClass('box-login-green');
+	$(".pw1c").removeClass('fa-lock');
+	$(".pw1c").addClass('fa-unlock-alt');
+  }
+}
+
+function passwordVerification2(string) {
+  if (isPasswordValid() && arePasswordsMatching()) {
+	$("#pw2").addClass('box-login-green');
+	$(".pw2c").removeClass('fa-unlock-alt');
+	$(".pw2c").addClass('fa-lock');
+	$(".registerm").removeClass('registerdom');
+  } else {
+    $("#pw2").removeClass('box-login-green');
+	$(".pw2c").removeClass('fa-lock');
+	$(".pw2c").addClass('fa-unlock-alt');
+	
+  }
+}
+
+function mailVerification(string) {
+  if (isEmail()) {
+	$("#email").addClass('box-login-green');
+	return true;
+  } else {
+    $("#email").removeClass('box-login-green');
+	return false;
+  }
+}
+
+function isPasswordValid() {
+return $("#pw1").val().length > 8;
+}
+function arePasswordsMatching() {
+return $("#pw1").val() === $("#pw2").val();  
+}
+
+function isUsernameValid() {
+ if ($("#usrname").val().length < 17 && $("#usrname").val().length > 2) {
+    return true;
+} else {
+    return false;
+}}
+
+function isEmail() {
+  var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+  var email = $("#email").val();
+  return regex.test(email);
+}
+
+function processLoginData(data) {
+    var data = JSON.parse(data);
+    var error = data['error'];
+    if(error) {
+        switch(error) {
+            case "invalid": // usuario ou senha nao existe
+                alert("Usuário ou senha incorretos");
+                break;
+            case "incomplete": // data incompleta
+                alert("Preencha todos os campos");
+                break;
+            default:
+                alert("Erro desconhecido");
+                break;
+        }
+    }
+    else {
+        var verified = data['verified'];
+        var daysLeft = 0;
+        if(!verified) {
+            daysLeft = data['daysLeft'];
+        }
+        var session = data['cookieId'];
+        if(session) {
+            var sessionId = session;
+            document.cookie= "sessionId=" + sessionId  + ";";
+            $(".box-login-content").fadeOut(0500);
+            $("#adcm").text($("#adcm").text().replace("login", "area do usuario"));
+			if(loginrplay == "play") {
+			window.location = "http://play.satoshicraft.com/launcher";
+			}
+        }
+        else {
+            console.log("???");
+        }
+    }
+}
+
+$( "#buttonlogin" ).click(function() {
+if (!reglogin) {
+	if (isUsernameValid()) {
+		if (isPasswordValid()) {
+			if (arePasswordsMatching()) {
+				if (mailVerification()) {
+					grecaptcha.execute();
+				}
+			}
+		}
+	}
+} else {
+	if (isUsernameValid() && isPasswordValid()) {
+		$.post( "backend/loginPlayer.php", { username: $("#usrname").val(), password: $("#pw1").val() })
+			.done(processLoginData);
+	}
+}
+});
+
+function onSubmit(token) {
+if (!reglogin) {
+$.post( "backend/registerPlayer.php", { username: $("#usrname").val(), password: $("#pw1").val(), email: $("#email").val(), captchaResp: token})
+  .done(function( data ) {
+    data = JSON.parse(data);
+    var error = data['error'];
+    if(error) {
+        switch(error) {
+            case "captcha":
+                alert("Captcha incorreto");
+            case "user_exists":
+                alert("Usuário já existe");
+            case "user_bad":
+                alert("Usuário muito curto ou muito grande");
+            case "pass_short":
+                alert("Senha muito curta");
+            case "phone":
+                alert("Telefone incorreto");
+            case "incompleto":
+                alert("Preencha todos os campos");
+            default:
+                alert("Erro desconhecido");
+                console.log("e:" + error);
+        }
+    }
+    else {
+        var success = data['success'];
+        if(success) {
+            $.post("backend/loginPlayer.php", { username: $("#usrname").val(), password: $("#pw1").val() })
+			.done(processLoginData);
+        }
+    }
+  });
+}
+}
+</script>
